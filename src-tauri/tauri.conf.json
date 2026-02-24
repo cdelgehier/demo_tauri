@@ -1,0 +1,36 @@
+{
+  "productName": "app-demo",
+  "version": "0.1.0",
+  "identifier": "com.demo.app-demo",
+  "build": {
+    "beforeDevCommand": "cd frontend && npm run dev",
+    "beforeBuildCommand": "cd frontend && npm run generate",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../frontend/.output/public"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "app-demo",
+        "width": 900,
+        "height": 650,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": ["binaries/fastapi-server"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

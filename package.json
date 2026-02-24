@@ -1,0 +1,13 @@
+{
+  "name": "app-demo",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "build:backend-bin": "cd backend && uv run pyinstaller --onefile --name fastapi-server --hidden-import uvicorn.logging --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.protocols --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on server.py && cp dist/fastapi-server ../src-tauri/binaries/fastapi-server-$(rustc -Vv | grep host | cut -d' ' -f2)"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
