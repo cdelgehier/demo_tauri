@@ -93,3 +93,17 @@ Three places to update:
 | [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json) | `productName` and `app > windows[0] > title` |
 | [src-tauri/tauri.conf.json](src-tauri/tauri.conf.json) | `identifier` (e.g. `com.mycompany.myapp`) |
 | [src-tauri/Cargo.toml](src-tauri/Cargo.toml) | `[package] name` |
+
+## macOS: "app-demo is damaged and can't be opened"
+
+This warning comes from **macOS Gatekeeper**, not from the app itself. Gatekeeper blocks any application that is not signed with an Apple Developer certificate ($99/year). When you download the `.dmg` from the internet, your browser adds a quarantine flag to the file, and macOS refuses to open it.
+
+The app works perfectly fine — it is just not code-signed.
+
+To fix it, open a terminal and run:
+
+```bash
+xattr -cr /Applications/app-demo.app
+```
+
+Then open the app normally. You only need to do this once.
