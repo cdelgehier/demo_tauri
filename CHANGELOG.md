@@ -1,3 +1,9 @@
+## v0.4.0 (2026-02-25)
+
+### Feat
+
+- **ci**: build DMG for both Apple Silicon and Intel Macs
+
 ## v0.3.1 (2026-02-25)
 
 ### Fix
