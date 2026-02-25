@@ -2,7 +2,7 @@ version: '3'
 
 tasks:
   install:
-    desc: Installe les dépendances npm
+    desc: Install npm dependencies
     cmds:
       - npm install
     sources:
@@ -11,25 +11,25 @@ tasks:
       - node_modules/.package-lock.json
 
   test:
-    desc: Lance les tests Vitest
+    desc: Run Vitest tests
     deps: [install]
     cmds:
       - npm run test
 
   lint:
-    desc: Vérifie les types TypeScript (nuxi typecheck)
+    desc: Check TypeScript types (nuxi typecheck)
     deps: [install]
     cmds:
       - npx nuxi typecheck
 
   up:
-    desc: Démarre le serveur de dev Nuxt (port 3000)
+    desc: Start the Nuxt dev server (port 3000)
     deps: [install]
     cmds:
       - npm run dev
 
   generate:
-    desc: Compile le frontend en SSG (.output/public/)
+    desc: Build the frontend as static files (.output/public/)
     deps: [install]
     cmds:
       - npm run generate

@@ -5,88 +5,65 @@ includes:
     taskfile: ./frontend/Taskfile.yml
     dir: ./frontend
   backend:
-    taskfile: ./backend/Taskfile.yml
-    dir: ./backend
+    taskfile: ./src-tauri/Taskfile.yml
+    dir: ./src-tauri
 
 tasks:
   default:
-    desc: Liste toutes les tâches disponibles
+    desc: List all available tasks
     silent: true
     cmds:
       - task --list
 
   install:
-    desc: Installe toutes les dépendances (frontend + backend + racine)
-    deps: [frontend:install, backend:install]
+    desc: Install all dependencies (frontend + root)
+    deps: [frontend:install]
     cmds:
       - npm install
 
   test:
-    desc: Lance tous les tests (frontend + backend en parallèle)
+    desc: Run all tests (frontend + backend in parallel)
     deps: [frontend:test, backend:test]
 
   lint:
-    desc: Lint tout le code (frontend + backend en parallèle)
+    desc: Check all code (frontend + backend in parallel)
     deps: [frontend:lint, backend:lint]
 
   up:
-    desc: Démarre le frontend (port 3000) et le backend (port 8000) en parallèle
-    deps:
-      - task: frontend:up
-      - task: backend:up
-
-  dev:
-    desc: Lance l'app Tauri en mode dev (hot-reload Nuxt + sidecar FastAPI)
-    deps: [package:sidecar]
+    aliases: [dev]
+    desc: Start the app in dev mode (Nuxt hot-reload + embedded Rocket backend)
     cmds:
       - npx tauri dev
 
   stop:
     aliases: [down]
-    desc: Arrête tous les serveurs de dev (frontend :3000, backend :8000, Tauri)
+    desc: Stop all dev processes (frontend :3000, Tauri, backend :8000)
     cmds:
       - lsof -ti:3000 | xargs kill -9 2>/dev/null || true
       - lsof -ti:8000 | xargs kill -9 2>/dev/null || true
       - pkill -f "tauri dev" 2>/dev/null || true
 
   clean:
-    desc: Supprime tous les artefacts de build (venv, .nuxt, target, node_modules, sidecar, checksums Task)
+    desc: Remove all build artifacts (.nuxt, target, node_modules, Task checksums)
     cmds:
-      # Python
-      - rm -rf backend/.venv backend/dist backend/build backend/__pycache__ backend/*.spec
       # Nuxt
-      - rm -rf frontend/.nuxt frontend/.output frontend/node_modules
-      # Tauri
-      - rm -rf src-tauri/target src-tauri/binaries
-      # Node racine
+      - rm -rf frontend/.nuxt frontend/.output frontend/node_modules frontend/.task
+      # Tauri / backend
+      - rm -rf src-tauri/target
+      # Root node modules
       - rm -rf node_modules
-      # Checksums Task (force le recalcul des fingerprints)
+      # Task checksums (forces fingerprints to be recalculated)
       - rm -rf .task
 
   icons:
-    desc: Régénère tous les formats d'icônes depuis src-tauri/icons/app-icon.png
+    desc: Regenerate all icon formats from src-tauri/icons/app-icon.png
     cmds:
       - npx tauri icon src-tauri/icons/app-icon.png
 
-  package:sidecar:
-    desc: Compile le binaire FastAPI (PyInstaller) et le place dans src-tauri/binaries/
-    vars:
-      TARGET:
-        sh: rustc -Vv | grep host | cut -d' ' -f2
-    sources:
-      - backend/main.py
-      - backend/server.py
-      - backend/pyproject.toml
-    generates:
-      - "src-tauri/binaries/fastapi-server-{{.TARGET}}"
-    cmds:
-      - task: backend:build-bin
-
   package:
-    desc: Construit l'app macOS complète (.app + .dmg)
+    desc: Build the full macOS app (.app + .dmg)
     cmds:
       - npm install
       - task: icons
-      - task: backend:build-bin
       - task: frontend:install
       - npx tauri build

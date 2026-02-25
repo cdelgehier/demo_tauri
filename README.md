@@ -1,6 +1,6 @@
 # app-demo
 
-A macOS demo application that packages a **NuxtJS** frontend and a **FastAPI** backend into a native app using **Tauri**.
+A macOS demo application that packages a **NuxtJS** frontend and a **Rocket** backend into a native app using **Tauri**.
 
 The interface takes two integers, sends them to the backend, and displays the sum.
 
@@ -15,7 +15,7 @@ graph TB
             UI --> Composable
         end
 
-        subgraph Backend["Backend — FastAPI (sidecar)"]
+        subgraph Backend["Backend — Rocket (embedded)"]
             API["POST /sum"]
         end
 
@@ -26,47 +26,46 @@ graph TB
     API -->|"{ result: number }"| Composable
 ```
 
-The FastAPI backend is compiled into a standalone binary with PyInstaller and embedded as a **Tauri sidecar**: it starts automatically with the app and stops when the app closes.
+The Rocket backend runs in a thread inside the Tauri process. It starts automatically when the app starts — no sidecar, no separate binary.
 
 ## Requirements
 
 - [Rust](https://rustup.rs/)
 - [Node.js](https://nodejs.org/) ≥ 20
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [Task](https://taskfile.dev/) (`brew install go-task`)
 
 ## Available tasks
 
 | Command | Description |
 |---|---|
-| `task install` | Install all dependencies (frontend + backend + root) |
-| `task up` | Start the frontend (`:3000`) and the backend (`:8000`) in parallel |
-| `task dev` | Run the Tauri app in dev mode with hot-reload |
-| `task lint` | Check the code (TypeScript + ruff) |
-| `task stop` | Stop all running servers (`task down` is an alias) |
-| `task package` | Build the backend binary, generate the static frontend, and produce the `.app` and `.dmg` |
-| `task clean` | Remove all build artifacts (`.venv`, `.nuxt`, `target`, `node_modules`, sidecar) |
+| `task install` | Install all dependencies (frontend + root) |
+| `task up` | Launch the full app in dev mode — alias for `task dev` |
+| `task dev` | Launch the full app in dev mode (hot-reload Nuxt + embedded Rocket) |
+| `task lint` | Check the code (TypeScript + clippy) |
+| `task test` | Run all tests (frontend + backend in parallel) |
+| `task stop` | Stop all running processes (`task down` is an alias) |
+| `task package` | Generate the static frontend, build the app, and produce the `.app` and `.dmg` |
+| `task clean` | Remove all build artifacts (`.nuxt`, `target`, `node_modules`) |
 
 ### Typical workflow
 
 ```bash
-# Work on frontend and backend independently
+# Start the full app in dev mode (frontend hot-reload + Rocket backend)
 task up
-
-# Run the full app in Tauri with hot-reload
-task dev
 
 # Stop everything
 task stop
+
+# Run tests
+task test
 
 # Build the distributable DMG
 task package
 # Output: src-tauri/target/release/bundle/dmg/app-demo_*.dmg
 ```
 
-> **`task dev` vs `task up`**
-> - `task up` starts the frontend and backend as two independent servers. Useful for fast iteration without Tauri.
-> - `task dev` runs `npx tauri dev`: Tauri starts the FastAPI sidecar and opens a webview pointed at the Nuxt dev server.
+> The Rocket backend only runs inside the Tauri process. There is no standalone backend server.
+> `task up` and `task dev` are aliases — both start `npx tauri dev`.
 
 ## Changing the icon
 

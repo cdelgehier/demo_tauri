@@ -14,7 +14,7 @@ export function useBackendReady() {
 
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${API_BASE}/docs`, { method: "HEAD" });
+        const res = await fetch(`${API_BASE}/health`, { method: "GET" });
         if (res.ok || res.status === 405) {
           ready.value = true;
           clearInterval(interval);

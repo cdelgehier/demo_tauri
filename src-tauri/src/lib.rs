@@ -1,67 +1,173 @@
-use std::sync::{Arc, Mutex};
-use tauri::Manager;
-use tauri_plugin_shell::ShellExt;
+use rocket::fairing::{Fairing, Info, Kind};
+use rocket::http::Header;
+use rocket::serde::json::Json;
+use rocket::{Request, Response};
 
-/// Kill a process and all its children (needed for PyInstaller --onefile).
-fn kill_process_tree(pid: u32) {
-    // First, find and kill children
-    if let Ok(output) = std::process::Command::new("pgrep")
-        .args(["-P", &pid.to_string()])
-        .output()
-    {
-        let children = String::from_utf8_lossy(&output.stdout);
-        for child_pid in children.lines() {
-            if let Ok(cpid) = child_pid.trim().parse::<u32>() {
-                kill_process_tree(cpid);
-            }
-        }
-    }
-    // Then kill this process
-    let _ = std::process::Command::new("kill")
-        .args([&pid.to_string()])
-        .status();
+#[derive(serde::Deserialize)]
+struct SumRequest {
+    a: i64,
+    b: i64,
 }
 
-type SidecarState = Arc<Mutex<Option<u32>>>;
+#[derive(serde::Serialize)]
+struct SumResponse {
+    result: i64,
+}
+
+#[rocket::post("/sum", data = "<req>")]
+fn sum(req: Json<SumRequest>) -> Json<SumResponse> {
+    Json(SumResponse {
+        result: req.a + req.b,
+    })
+}
+
+/// Health check used by useBackendReady.ts to wait for the backend to be ready.
+#[rocket::get("/health")]
+fn health() -> &'static str {
+    "ok"
+}
+
+/// Handles preflight OPTIONS requests sent by the browser before CORS requests.
+#[rocket::options("/sum")]
+fn options_sum() -> &'static str {
+    ""
+}
+
+/// Allowed origins for CORS. Includes the Tauri webview origins and the Nuxt dev server.
+const ALLOWED_ORIGINS: &[&str] = &[
+    "tauri://localhost",
+    "https://tauri.localhost",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+];
+
+/// CORS fairing: mirrors the request Origin back if it is in the allow-list.
+/// Using a wildcard (*) would expose the API to DNS rebinding attacks.
+struct CorsFairing;
+
+#[rocket::async_trait]
+impl Fairing for CorsFairing {
+    fn info(&self) -> Info {
+        Info {
+            name: "CORS",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, req: &'r Request<'_>, res: &mut Response<'r>) {
+        let origin = req.headers().get_one("Origin").unwrap_or_default();
+
+        let allowed = if ALLOWED_ORIGINS.contains(&origin) {
+            origin
+        } else {
+            // No Origin header (e.g. curl, direct call) — allow localhost explicitly.
+            "http://localhost:3000"
+        };
+
+        res.set_header(Header::new(
+            "Access-Control-Allow-Origin",
+            allowed.to_string(),
+        ));
+        res.set_header(Header::new(
+            "Access-Control-Allow-Methods",
+            "POST, GET, OPTIONS",
+        ));
+        res.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type"));
+    }
+}
+
+fn rocket_instance() -> rocket::Rocket<rocket::Build> {
+    rocket::build()
+        .mount("/", rocket::routes![health, sum, options_sum])
+        .attach(CorsFairing)
+        .configure(rocket::Config {
+            port: 8000,
+            // Show errors in release builds; full logging in debug builds.
+            log_level: if cfg!(debug_assertions) {
+                rocket::config::LogLevel::Normal
+            } else {
+                rocket::config::LogLevel::Critical
+            },
+            ..Default::default()
+        })
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let sidecar_pid: SidecarState = Arc::new(Mutex::new(None));
-    let pid_for_window = Arc::clone(&sidecar_pid);
-    let pid_for_exit = Arc::clone(&sidecar_pid);
-
-    let app = tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .setup(move |app| {
-            let sidecar = app.shell().sidecar("fastapi-server")?;
-            let (_rx, child) = sidecar.spawn()?;
-            let pid = child.pid();
-
-            // Store the PID for cleanup
-            *pid_for_window.lock().unwrap() = Some(pid);
-
-            // Also handle window close (red button)
-            let pid_for_close = Arc::clone(&pid_for_window);
-            let window = app.get_webview_window("main").unwrap();
-            window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { .. } = event {
-                    if let Some(pid) = pid_for_close.lock().unwrap().take() {
-                        kill_process_tree(pid);
-                    }
-                }
+    tauri::Builder::default()
+        .setup(|_app| {
+            std::thread::spawn(|| {
+                rocket::execute(rocket_instance().launch())
+                    .expect("Rocket failed to launch — port 8000 may already be in use");
             });
-
             Ok(())
         })
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application");
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
 
-    // Handle Cmd+Q / app quit
-    app.run(move |_app_handle, event| {
-        if let tauri::RunEvent::Exit = event {
-            if let Some(pid) = pid_for_exit.lock().unwrap().take() {
-                kill_process_tree(pid);
-            }
-        }
-    });
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rocket::http::{ContentType, Status};
+    use rocket::local::blocking::Client;
+
+    fn client() -> Client {
+        Client::tracked(rocket_instance()).expect("valid rocket instance")
+    }
+
+    #[test]
+    fn test_sum_positive() {
+        let c = client();
+        let res = c
+            .post("/sum")
+            .header(ContentType::JSON)
+            .body(r#"{"a":2,"b":3}"#)
+            .dispatch();
+        assert_eq!(res.status(), Status::Ok);
+        assert!(res.into_string().unwrap().contains("5"));
+    }
+
+    #[test]
+    fn test_sum_negative() {
+        let c = client();
+        let res = c
+            .post("/sum")
+            .header(ContentType::JSON)
+            .body(r#"{"a":-1,"b":-2}"#)
+            .dispatch();
+        assert_eq!(res.status(), Status::Ok);
+        assert!(res.into_string().unwrap().contains("-3"));
+    }
+
+    #[test]
+    fn test_sum_zeros() {
+        let c = client();
+        let res = c
+            .post("/sum")
+            .header(ContentType::JSON)
+            .body(r#"{"a":0,"b":0}"#)
+            .dispatch();
+        assert_eq!(res.status(), Status::Ok);
+        assert!(res.into_string().unwrap().contains("0"));
+    }
+
+    #[test]
+    fn test_sum_large_numbers() {
+        let c = client();
+        let res = c
+            .post("/sum")
+            .header(ContentType::JSON)
+            .body(r#"{"a":1000000,"b":999999}"#)
+            .dispatch();
+        assert_eq!(res.status(), Status::Ok);
+        assert!(res.into_string().unwrap().contains("1999999"));
+    }
+
+    #[test]
+    fn test_options_preflight() {
+        let c = client();
+        let res = c.options("/sum").dispatch();
+        assert_eq!(res.status(), Status::Ok);
+    }
 }

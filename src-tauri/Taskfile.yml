@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  test:
+    desc: Run backend tests (cargo test)
+    cmds:
+      - cargo test
+
+  lint:
+    desc: Check backend code (clippy + fmt)
+    cmds:
+      - cargo clippy -- -D warnings
+      - cargo fmt --check
