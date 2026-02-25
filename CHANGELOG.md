@@ -1,3 +1,9 @@
+## v0.5.1 (2026-02-25)
+
+### Fix
+
+- **cors**: add http://tauri.localhost for Windows (Tauri v2 default)
+
 ## v0.5.0 (2026-02-25)
 
 ### Feat
