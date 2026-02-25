@@ -1,3 +1,9 @@
+## v0.4.1 (2026-02-25)
+
+### Fix
+
+- **ci**: replace deprecated macos-13 runner with macos-15-intel
+
 ## v0.4.0 (2026-02-25)
 
 ### Feat
