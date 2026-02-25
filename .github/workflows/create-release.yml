@@ -69,9 +69,18 @@ jobs:
           echo "📦 Release URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
 
   build-macos:
-    name: Build macOS package
-    runs-on: macos-latest
+    name: Build macOS package (${{ matrix.arch }})
     needs: create-release
+
+    strategy:
+      matrix:
+        include:
+          - runs-on: macos-latest  # Apple Silicon (ARM)
+            arch: aarch64
+          - runs-on: macos-13      # Intel (x86_64)
+            arch: x86_64
+
+    runs-on: ${{ matrix.runs-on }}
 
     permissions:
       contents: write
@@ -108,5 +117,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "✅ macOS package built and uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "✅ macOS ${{ matrix.arch }} package built and uploaded" >> $GITHUB_STEP_SUMMARY
           ls -lh src-tauri/target/release/bundle/dmg/*.dmg >> $GITHUB_STEP_SUMMARY
