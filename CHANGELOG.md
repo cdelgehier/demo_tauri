@@ -1,3 +1,9 @@
+## v0.3.1 (2026-02-25)
+
+### Fix
+
+- **ci**: remove Python/uv setup, add Rust to test-and-lint workflow
+
 ## v0.3.0 (2026-02-25)
 
 ### Feat
