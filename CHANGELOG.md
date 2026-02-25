@@ -1,3 +1,9 @@
+## v0.5.0 (2026-02-25)
+
+### Feat
+
+- **ci**: add Windows x64 build to release workflow
+
 ## v0.4.1 (2026-02-25)
 
 ### Fix
