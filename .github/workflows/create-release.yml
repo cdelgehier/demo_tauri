@@ -119,3 +119,46 @@ jobs:
         run: |
           echo "✅ macOS ${{ matrix.arch }} package built and uploaded" >> $GITHUB_STEP_SUMMARY
           ls -lh src-tauri/target/release/bundle/dmg/*.dmg >> $GITHUB_STEP_SUMMARY
+
+  build-windows:
+    name: Build Windows package
+    runs-on: windows-2025
+    needs: create-release
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package.json
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build package
+        run: task package
+
+      - name: Upload EXE to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: src-tauri/target/release/bundle/nsis/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "Windows package built and uploaded" >> $env:GITHUB_STEP_SUMMARY
+          Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object Name, Length >> $env:GITHUB_STEP_SUMMARY
