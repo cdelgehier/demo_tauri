@@ -35,9 +35,10 @@ fn options_sum() -> &'static str {
 
 /// Allowed origins for CORS. Includes the Tauri webview origins and the Nuxt dev server.
 const ALLOWED_ORIGINS: &[&str] = &[
-    "tauri://localhost",
-    "https://tauri.localhost",
-    "http://localhost:3000",
+    "tauri://localhost",       // macOS / Linux
+    "http://tauri.localhost",  // Windows (Tauri v2 default since v2.1.0)
+    "https://tauri.localhost", // Windows with useHttpsScheme: true
+    "http://localhost:3000",   // Nuxt dev server
     "http://127.0.0.1:3000",
 ];
 
