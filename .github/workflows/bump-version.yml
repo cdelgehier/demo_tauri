@@ -19,19 +19,19 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
           # Use PAT to trigger the create-release workflow when pushing tags
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.x'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4.2.0
         with:
           enable-cache: false
 
@@ -71,13 +71,15 @@ jobs:
 
       - name: Update annotated tag with changelog
         if: steps.bump.outputs.skip == 'false'
+        env:
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
         run: |
           # Get the latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0)
 
           # Delete and recreate the tag with the changelog as message
           git tag -d "$LATEST_TAG"
-          git tag -a "$LATEST_TAG" -m "${{ steps.changelog.outputs.changelog }}"
+          git tag -a "$LATEST_TAG" -m "$CHANGELOG"
 
       - name: Push changes and tags
         if: steps.bump.outputs.skip == 'false'
@@ -86,11 +88,14 @@ jobs:
           git push origin --tags --force
 
       - name: Summary
+        env:
+          SKIP: ${{ steps.bump.outputs.skip }}
+          VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          if [ "${{ steps.bump.outputs.skip }}" == "true" ]; then
+          if [ "$SKIP" == "true" ]; then
             echo "✅ No version bump needed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✅ Version bumped to ${{ steps.bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "✅ Version bumped to $VERSION" >> $GITHUB_STEP_SUMMARY
             echo "📝 Changelog updated" >> $GITHUB_STEP_SUMMARY
-            echo "🏷️ Tag created: v${{ steps.bump.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "🏷️ Tag created: v$VERSION" >> $GITHUB_STEP_SUMMARY
           fi
